@@ -54,14 +54,14 @@ if (-not (Test-Path -LiteralPath $SyncScriptPath)) {
 # Windows Server hosts and has the broadest compatibility with inbox modules.
 $preferredShellCommand = Get-Command powershell -ErrorAction SilentlyContinue
 if ($preferredShellCommand) {
-    $pwshPath = $preferredShellCommand.Source
+    $shellPath = $preferredShellCommand.Source
 }
 else {
-    $pwshPath = (Get-Command pwsh -ErrorAction Stop).Source
+    $shellPath = (Get-Command pwsh -ErrorAction Stop).Source
 }
 
 $argument = "-NoProfile -ExecutionPolicy Bypass -File `"$SyncScriptPath`" -ManifestPath `"$ManifestPath`""
-$action = New-ScheduledTaskAction -Execute $pwshPath -Argument $argument
+$action = New-ScheduledTaskAction -Execute $shellPath -Argument $argument
 $trigger = New-ScheduledTaskTrigger `
     -Once `
     -At (Get-Date).AddMinutes(1) `

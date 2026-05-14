@@ -66,7 +66,8 @@ function Get-CertificatePassword {
     }
 
     Write-Verbose 'Reading the PFX password from a file. Prefer an injected environment variable or managed secret store.'
-    return ((Get-Content -LiteralPath $Manifest.PasswordFilePath -Raw).Trim() | ConvertTo-SecureString -AsPlainText -Force)
+    $passwordText = (Get-Content -LiteralPath $Manifest.PasswordFilePath -Raw).Trim()
+    return ($passwordText | ConvertTo-SecureString -AsPlainText -Force)
 }
 
 function Import-SharedCertificate {
@@ -151,7 +152,7 @@ function Set-RdpCertificateBinding {
         throw 'Could not locate the RDP-Tcp listener configuration.'
     }
 
-    Set-CimInstance -InputObject $rdpSetting -Property @{ SSLCertificateSHA1Hash = $Certificate.Thumbprint } | Out-Null
+    $null = Set-CimInstance -InputObject $rdpSetting -Property @{ SSLCertificateSHA1Hash = $Certificate.Thumbprint }
     Write-Host "Updated RDP listener certificate to $($Certificate.Thumbprint)"
 }
 

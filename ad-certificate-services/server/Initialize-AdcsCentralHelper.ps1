@@ -81,7 +81,9 @@ $manifest = [ordered]@{
     Notes                    = 'Update this manifest after issuing the real certificate.'
 }
 
-$manifest | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $manifestPath -Encoding UTF8
+$manifestJson = $manifest | ConvertTo-Json -Depth 5
+$manifestEncoding = if ($PSVersionTable.PSVersion.Major -ge 6) { 'utf8NoBOM' } else { 'utf8' }
+Set-Content -LiteralPath $manifestPath -Value $manifestJson -Encoding $manifestEncoding
 
 Write-Host "Repository initialized at $RepositoryPath"
 Write-Host "Sample manifest: $manifestPath"
