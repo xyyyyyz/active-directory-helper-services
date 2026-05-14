@@ -35,7 +35,7 @@ Use a lightweight pull model on member servers:
 3. The helper applies service-specific binding logic:
    - **IIS**: update HTTPS bindings by hostname/port.
    - **RDP**: set the RDP listener thumbprint.
-   - **SQL Server**: import the cert, then run a SQL-specific post-import step to update the SQL binding and restart during a maintenance window.
+   - **SQL Server**: set the certificate thumbprint in the SQL Server registry key (`SuperSocketNetLib\Certificate`) for each instance defined in `SqlBindings`; optionally restart the SQL Server service during a maintenance window.
 4. The job records what it changed and exits without re-importing unchanged certs.
 
 This approach works well for HA services because the central helper controls a single exported certificate and each member server independently pulls the same artifact.
@@ -91,9 +91,9 @@ It is usually **less natural than PowerShell or Ansible** for certificate lifecy
 ### SQL Server
 
 - Template EKUs: Server Authentication
-- SANs: node FQDNs plus listener DNS names where required
-- Prefer central request for shared listener-style certificates or when consistent rollout matters
-- After import, run a SQL-specific binding step and plan a service restart
+- SANs: populate `DnsNames` with every AG node FQDN; populate `ListenerNames` with every AG listener or FCI virtual-network DNS name — the central helper merges both arrays into the certificate request so a single cert covers all names
+- After import, `Sync-AdcsCertificate.ps1` reads `SqlBindings` and writes the thumbprint directly into the SQL Server registry key (`SuperSocketNetLib\Certificate`) for each configured instance
+- Set `RestartService: true` in a `SqlBinding` entry only during a planned maintenance window; the new certificate does not take effect until the SQL Server service is restarted
 - Reusing the same private key during renewal can simplify rollover where application behavior expects continuity
 
 ### RDP
@@ -116,20 +116,20 @@ It is usually **less natural than PowerShell or Ansible** for certificate lifecy
 ### Server (AD CS helper host / CA server)
 
 - `server/Initialize-AdcsCentralHelper.ps1` – prepares the repository/share layout and creates a sample manifest.
-- `server/Invoke-AdcsCertificateRenewalJob.ps1` – periodic job that reads every manifest, determines whether each certificate needs to be generated or renewed, generates a CSR from the manifest properties, submits it to the AD CS CA, accepts the issued certificate, and publishes a PFX back to the repository.
+- `server/Invoke-AdcsCertificateRenewalJob.ps1` – periodic job that reads every manifest, determines whether each certificate needs to be generated or renewed, generates a CSR from the manifest properties (including `DnsNames` and `ListenerNames` as SANs), submits it to the AD CS CA, accepts the issued certificate, and publishes a PFX back to the repository.
 - `server/Install-AdcsCertificateRenewalTask.ps1` – registers a Windows scheduled task that calls `Invoke-AdcsCertificateRenewalJob.ps1` on a recurring schedule (default: once per day).
 
 ### Client (member servers)
 
 - `client/Install-AdcsCertificatePullTask.ps1` – registers a scheduled pull job on a member server.
-- `client/Sync-AdcsCertificate.ps1` – imports the published PFX and optionally applies IIS or RDP bindings.
+- `client/Sync-AdcsCertificate.ps1` – imports the published PFX and applies IIS, RDP, or SQL Server bindings as configured in the manifest.
 
 ## Example workflow
 
 ### One-time setup
 
 1. Run `server/Initialize-AdcsCentralHelper.ps1` on the helper host to create the repository layout and a sample manifest.
-2. Edit the generated manifest (under `certificates/`) to reflect the real subject, SAN set, certificate template, and binding configuration.
+2. Edit the generated manifest (under `certificates/`) to reflect the real subject, `DnsNames` (node FQDNs), `ListenerNames` (AG listener DNS names), certificate template, and binding configuration.
 3. Run `server/Install-AdcsCertificateRenewalTask.ps1` on the helper host to register the renewal scheduled task:
 
    ```powershell
@@ -142,7 +142,7 @@ It is usually **less natural than PowerShell or Ansible** for certificate lifecy
 
 4. The scheduled task fires `Invoke-AdcsCertificateRenewalJob.ps1` on the configured interval.  For every manifest it finds:
    - Checks whether a PFX already exists and whether the certificate is within the `RenewalWindowDays` threshold.
-   - If action is needed, generates a certreq INF file from the manifest, runs `certreq -new` to produce the CSR, submits it to the CA with `certreq -submit`, accepts the issued certificate with `certreq -accept`, and exports a PFX to the repository path.
+   - If action is needed, generates a certreq INF file from the manifest (merging `DnsNames` and `ListenerNames` into the SAN set), runs `certreq -new` to produce the CSR, submits it to the CA with `certreq -submit`, accepts the issued certificate with `certreq -accept`, and exports a PFX to the repository path.
    - Writes a log entry to `logs/renewal-<date>.log` for each manifest processed.
 
 ### Client pull setup (member servers)
@@ -150,7 +150,7 @@ It is usually **less natural than PowerShell or Ansible** for certificate lifecy
 5. Copy the client scripts to each member server.
 6. Run `client/Install-AdcsCertificatePullTask.ps1` with the repository path and manifest path.
 7. Let the scheduled task run `client/Sync-AdcsCertificate.ps1` on a schedule.
-8. For SQL Server or other COTS apps, call an application-specific post-import script after the certificate is in `LocalMachine\My`.
+8. For each member server the sync script will import the PFX, update IIS bindings or the RDP listener if configured, and write the SQL Server registry binding for each instance listed in `SqlBindings`. Restart SQL Server services during a planned maintenance window if `RestartService` is not set to `true` in the manifest.
 
 ### Renewal command reference
 

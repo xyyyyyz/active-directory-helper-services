@@ -56,8 +56,16 @@ foreach ($directory in $directories) {
 
 $manifest = [ordered]@{
     CertificateName          = $CertificateName
-    Subject                  = 'CN=service.example.com'
-    DnsNames                 = @('service.example.com', 'listener.example.com')
+    Subject                  = 'CN=ag-listener.example.com'
+    # DnsNames contains the AG node FQDNs for the SAN set sent to the CA.
+    # ListenerNames contains the AG listener and FCI virtual-network DNS names.
+    # The central helper merges both arrays when building the certificate request,
+    # so listener names should not be duplicated in DnsNames.
+    DnsNames                 = @('node1.example.com', 'node2.example.com', 'node3.example.com')
+    # ListenerNames are the AG listener (or FCI virtual network) DNS names that
+    # must also appear in the SAN set.  Keep them separate so helper tooling can
+    # distinguish listener names from node names when building the certificate request.
+    ListenerNames            = @('ag-listener.example.com', 'ag-listener2.example.com')
     Applications             = @('IIS', 'SQL')
     CertificateTemplate      = 'WebServer'
     PublishMode              = 'CentralHelperIssued'
@@ -72,6 +80,20 @@ $manifest = [ordered]@{
             Port      = 443
             IPAddress = '*'
             HostName  = 'service.example.com'
+        }
+    )
+    # SqlBindings configures the SQL Server TLS certificate binding on each node.
+    # InstanceRegistryPath must match the registry key for the SQL Server instance,
+    # for example 'MSSQL16.MSSQLSERVER' for a SQL Server 2022 default instance or
+    # 'MSSQL16.SQLEXPRESS' for a named instance.
+    # Set RestartService to true only during a planned maintenance window; the
+    # new certificate does not take effect until the SQL Server service is restarted.
+    SqlBindings              = @(
+        [ordered]@{
+            InstanceName         = 'MSSQLSERVER'
+            InstanceRegistryPath = 'MSSQL16.MSSQLSERVER'
+            ServiceName          = 'MSSQLSERVER'
+            RestartService       = $false
         }
     )
     RdpEnabled               = $false
