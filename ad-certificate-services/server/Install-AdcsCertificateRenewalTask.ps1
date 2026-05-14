@@ -103,5 +103,5 @@ Register-ScheduledTask @registerTaskParameters | Out-Null
 Write-Host "Scheduled task '$TaskName' registered."
 Write-Host "Repository:    $RepositoryPath"
 Write-Host "CA config:     $CaConfig"
-Write-Host "Renewal script:$RenewalScriptPath"
+Write-Host "Renewal script: $RenewalScriptPath"
 Write-Host "Schedule:      every $RepeatMinutes minute(s), first run in 5 minutes."
