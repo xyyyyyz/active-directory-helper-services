@@ -156,6 +156,55 @@ function Set-RdpCertificateBinding {
     Write-Host "Updated RDP listener certificate to $($Certificate.Thumbprint)"
 }
 
+function Set-SqlServerCertificateBinding {
+    param(
+        [Parameter(Mandatory)]
+        [pscustomobject]$Manifest,
+
+        [Parameter(Mandatory)]
+        [System.Security.Cryptography.X509Certificates.X509Certificate2]$Certificate
+    )
+
+    if (-not $Manifest.SqlBindings) {
+        return
+    }
+
+    if (-not (Test-CertificateSupportsServerAuthentication -Certificate $Certificate)) {
+        throw "Certificate $($Certificate.Thumbprint) does not include the Server Authentication EKU required for SQL Server TLS."
+    }
+
+    # SQL Server registry expects the thumbprint in lowercase with no spaces.
+    $thumbprint = $Certificate.Thumbprint.ToLowerInvariant()
+
+    foreach ($binding in $Manifest.SqlBindings) {
+        $registryPath = 'HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\{0}\MSSQLServer\SuperSocketNetLib' -f $binding.InstanceRegistryPath
+
+        if (-not (Test-Path -LiteralPath $registryPath)) {
+            throw "SQL Server registry path '$registryPath' not found for instance '$($binding.InstanceName)'. Verify the InstanceRegistryPath in the manifest."
+        }
+
+        $currentValue = (Get-ItemProperty -LiteralPath $registryPath -Name Certificate -ErrorAction SilentlyContinue).Certificate
+        if ($currentValue -eq $thumbprint) {
+            Write-Host "SQL Server instance '$($binding.InstanceName)' already bound to certificate $($Certificate.Thumbprint)"
+            continue
+        }
+
+        Set-ItemProperty -LiteralPath $registryPath -Name Certificate -Value $thumbprint
+        Write-Host "Bound certificate $($Certificate.Thumbprint) to SQL Server instance '$($binding.InstanceName)'"
+
+        if ($binding.RestartService) {
+            $serviceName = if ($binding.ServiceName) { [string]$binding.ServiceName } else { 'MSSQLSERVER' }
+            Write-Host "Restarting SQL Server service '$serviceName' to apply the new certificate binding"
+            Restart-Service -Name $serviceName -Force
+            Write-Host "Restarted SQL Server service '$serviceName'"
+        }
+        else {
+            $serviceName = if ($binding.ServiceName) { [string]$binding.ServiceName } else { 'MSSQLSERVER' }
+            Write-Host "SQL Server service '$serviceName' must be restarted manually for the new certificate to take effect."
+        }
+    }
+}
+
 function Invoke-TrustedPostImportScript {
     param(
         [Parameter(Mandatory)]
@@ -194,6 +243,10 @@ if ($manifest.IisBindings) {
 
 if ($manifest.RdpEnabled) {
     Set-RdpCertificateBinding -Certificate $certificate
+}
+
+if ($manifest.SqlBindings) {
+    Set-SqlServerCertificateBinding -Manifest $manifest -Certificate $certificate
 }
 
 if ($manifest.PostImportScriptPath) {
