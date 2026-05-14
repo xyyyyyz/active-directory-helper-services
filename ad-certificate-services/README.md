@@ -113,19 +113,58 @@ It is usually **less natural than PowerShell or Ansible** for certificate lifecy
 
 ## Folder contents
 
-- `server/Initialize-AdcsCentralHelper.ps1` - prepares a repository/share layout and sample manifest.
-- `client/Install-AdcsCertificatePullTask.ps1` - registers a scheduled pull job on a member server.
-- `client/Sync-AdcsCertificate.ps1` - imports the published PFX and applies IIS, RDP, or SQL Server bindings as configured in the manifest.
+### Server (AD CS helper host / CA server)
+
+- `server/Initialize-AdcsCentralHelper.ps1` – prepares the repository/share layout and creates a sample manifest.
+- `server/Invoke-AdcsCertificateRenewalJob.ps1` – periodic job that reads every manifest, determines whether each certificate needs to be generated or renewed, generates a CSR from the manifest properties (including `DnsNames` and `ListenerNames` as SANs), submits it to the AD CS CA, accepts the issued certificate, and publishes a PFX back to the repository.
+- `server/Install-AdcsCertificateRenewalTask.ps1` – registers a Windows scheduled task that calls `Invoke-AdcsCertificateRenewalJob.ps1` on a recurring schedule (default: once per day).
+
+### Client (member servers)
+
+- `client/Install-AdcsCertificatePullTask.ps1` – registers a scheduled pull job on a member server.
+- `client/Sync-AdcsCertificate.ps1` – imports the published PFX and applies IIS, RDP, or SQL Server bindings as configured in the manifest.
 
 ## Example workflow
 
-1. Run `server/Initialize-AdcsCentralHelper.ps1` on the helper host to create the repository layout.
-2. Have the helper host request or renew the certificate and publish:
-   - the PFX
-   - a manifest JSON file
-   - a separately protected password file or vault reference
-3. Copy the client scripts to each member server.
-4. Run `client/Install-AdcsCertificatePullTask.ps1` with the repository path and manifest path.
-5. Let the scheduled task run `client/Sync-AdcsCertificate.ps1` on a schedule.
-6. For each member server the sync script will import the PFX, update IIS bindings or the RDP listener if configured, and write the SQL Server registry binding for each instance listed in `SqlBindings`.
-7. Restart SQL Server services during a planned maintenance window if `RestartService` is not set to `true` in the manifest.
+### One-time setup
+
+1. Run `server/Initialize-AdcsCentralHelper.ps1` on the helper host to create the repository layout and a sample manifest.
+2. Edit the generated manifest (under `certificates/`) to reflect the real subject, `DnsNames` (node FQDNs), `ListenerNames` (AG listener DNS names), certificate template, and binding configuration.
+3. Run `server/Install-AdcsCertificateRenewalTask.ps1` on the helper host to register the renewal scheduled task:
+
+   ```powershell
+   .\server\Install-AdcsCertificateRenewalTask.ps1 `
+       -RepositoryPath   C:\AdcsHelper `
+       -CaConfig         "dc01\MyCA" `
+       -RenewalScriptPath C:\Scripts\Invoke-AdcsCertificateRenewalJob.ps1 `
+       -RunAsSystem
+   ```
+
+4. The scheduled task fires `Invoke-AdcsCertificateRenewalJob.ps1` on the configured interval.  For every manifest it finds:
+   - Checks whether a PFX already exists and whether the certificate is within the `RenewalWindowDays` threshold.
+   - If action is needed, generates a certreq INF file from the manifest (merging `DnsNames` and `ListenerNames` into the SAN set), runs `certreq -new` to produce the CSR, submits it to the CA with `certreq -submit`, accepts the issued certificate with `certreq -accept`, and exports a PFX to the repository path.
+   - Writes a log entry to `logs/renewal-<date>.log` for each manifest processed.
+
+### Client pull setup (member servers)
+
+5. Copy the client scripts to each member server.
+6. Run `client/Install-AdcsCertificatePullTask.ps1` with the repository path and manifest path.
+7. Let the scheduled task run `client/Sync-AdcsCertificate.ps1` on a schedule.
+8. For each member server the sync script will import the PFX, update IIS bindings or the RDP listener if configured, and write the SQL Server registry binding for each instance listed in `SqlBindings`. Restart SQL Server services during a planned maintenance window if `RestartService` is not set to `true` in the manifest.
+
+### Renewal command reference
+
+Run the renewal job manually at any time (use `-WhatIf` for a dry run):
+
+```powershell
+# Dry run — shows which certificates would be acted on
+.\server\Invoke-AdcsCertificateRenewalJob.ps1 `
+    -RepositoryPath C:\AdcsHelper `
+    -CaConfig       "dc01\MyCA" `
+    -WhatIf
+
+# Live run
+.\server\Invoke-AdcsCertificateRenewalJob.ps1 `
+    -RepositoryPath C:\AdcsHelper `
+    -CaConfig       "dc01\MyCA"
+```
