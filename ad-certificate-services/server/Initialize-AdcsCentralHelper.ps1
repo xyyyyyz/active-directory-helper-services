@@ -31,6 +31,14 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+$manifestPath = Join-Path -Path $RepositoryPath -ChildPath ("certificates/{0}.json" -f $CertificateName)
+$passwordPath = Join-Path -Path $RepositoryPath -ChildPath ("passwords/{0}.txt" -f $CertificateName)
+$pfxPath = Join-Path -Path $RepositoryPath -ChildPath ("certificates/{0}.pfx" -f $CertificateName)
+
+if ((Test-Path -LiteralPath $manifestPath) -and -not $Force) {
+    throw "Manifest already exists at '$manifestPath'. Use -Force to overwrite."
+}
+
 $directories = @(
     $RepositoryPath,
     (Join-Path -Path $RepositoryPath -ChildPath 'certificates'),
@@ -44,14 +52,6 @@ foreach ($directory in $directories) {
     if (-not (Test-Path -LiteralPath $directory)) {
         New-Item -Path $directory -ItemType Directory | Out-Null
     }
-}
-
-$manifestPath = Join-Path -Path $RepositoryPath -ChildPath ("certificates/{0}.json" -f $CertificateName)
-$passwordPath = Join-Path -Path $RepositoryPath -ChildPath ("passwords/{0}.txt" -f $CertificateName)
-$pfxPath = Join-Path -Path $RepositoryPath -ChildPath ("certificates/{0}.pfx" -f $CertificateName)
-
-if ((Test-Path -LiteralPath $manifestPath) -and -not $Force) {
-    throw "Manifest already exists at '$manifestPath'. Use -Force to overwrite."
 }
 
 $manifest = [ordered]@{

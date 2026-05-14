@@ -52,8 +52,11 @@ if (-not (Test-Path -LiteralPath $SyncScriptPath)) {
 
 # Prefer Windows PowerShell first because it is the default on most AD-joined
 # Windows Server hosts and has the broadest compatibility with inbox modules.
-$pwshPath = (Get-Command powershell -ErrorAction SilentlyContinue).Source
-if (-not $pwshPath) {
+$preferredShellCommand = Get-Command powershell -ErrorAction SilentlyContinue
+if ($preferredShellCommand) {
+    $pwshPath = $preferredShellCommand.Source
+}
+else {
     $pwshPath = (Get-Command pwsh -ErrorAction Stop).Source
 }
 

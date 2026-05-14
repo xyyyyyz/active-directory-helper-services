@@ -65,7 +65,7 @@ function Get-CertificatePassword {
         throw "Password file '$($Manifest.PasswordFilePath)' does not exist."
     }
 
-    Write-Warning 'Reading the PFX password from a file is a fallback option. Prefer an injected environment variable or managed secret store.'
+    Write-Verbose 'Reading the PFX password from a file. Prefer an injected environment variable or managed secret store.'
     return ((Get-Content -LiteralPath $Manifest.PasswordFilePath -Raw).Trim() | ConvertTo-SecureString -AsPlainText -Force)
 }
 
@@ -168,7 +168,7 @@ function Invoke-TrustedPostImportScript {
     )
 
     $resolvedPostImportScriptPath = (Resolve-Path -LiteralPath $PostImportScriptPath).Path
-    if ([System.IO.Path]::IsPathRooted($resolvedPostImportScriptPath) -and $resolvedPostImportScriptPath.StartsWith('\\')) {
+    if ($resolvedPostImportScriptPath.StartsWith('\\')) {
         throw "Post-import script '$resolvedPostImportScriptPath' must be a trusted local path, not a UNC path."
     }
 
