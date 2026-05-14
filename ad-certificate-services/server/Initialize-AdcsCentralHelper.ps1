@@ -1,3 +1,23 @@
+<#
+.SYNOPSIS
+Initializes a central AD CS helper repository layout.
+
+.DESCRIPTION
+Creates the directory structure and sample manifest used by a central helper
+host to publish shared certificates for member-server pull jobs.
+
+.PARAMETER RepositoryPath
+Base path for the helper repository or share.
+
+.PARAMETER CertificateName
+Logical certificate name used for the sample manifest and file names.
+
+.PARAMETER Force
+Overwrites an existing sample manifest.
+
+.EXAMPLE
+.\Initialize-AdcsCentralHelper.ps1 -RepositoryPath C:\AdcsHelper -CertificateName shared-web
+#>
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)]

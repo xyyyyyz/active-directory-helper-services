@@ -1,3 +1,17 @@
+<#
+.SYNOPSIS
+Imports and applies a shared AD CS certificate from a published manifest.
+
+.DESCRIPTION
+Reads a manifest that describes a published PFX, imports the certificate into
+the local machine store, and optionally updates IIS or RDP bindings.
+
+.PARAMETER ManifestPath
+Path to the manifest JSON file describing the published certificate.
+
+.EXAMPLE
+.\Sync-AdcsCertificate.ps1 -ManifestPath C:\AdcsHelper\certificates\shared-web.json
+#>
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)]
@@ -51,6 +65,7 @@ function Get-CertificatePassword {
         throw "Password file '$($Manifest.PasswordFilePath)' does not exist."
     }
 
+    Write-Warning 'Reading the PFX password from a file is a fallback option. Prefer an injected environment variable or managed secret store.'
     return ((Get-Content -LiteralPath $Manifest.PasswordFilePath -Raw).Trim() | ConvertTo-SecureString -AsPlainText -Force)
 }
 
@@ -68,6 +83,10 @@ function Import-SharedCertificate {
     $targetStore = if ($Manifest.TargetStore) { $Manifest.TargetStore } else { 'Cert:\LocalMachine\My' }
 
     $pfxData = Get-PfxData -FilePath $Manifest.RepositoryPfxPath -Password $password
+    if (-not $pfxData.EndEntityCertificates -or $pfxData.EndEntityCertificates.Count -lt 1) {
+        throw "PFX path '$($Manifest.RepositoryPfxPath)' does not contain an end-entity certificate."
+    }
+
     $endEntityThumbprint = $pfxData.EndEntityCertificates[0].Thumbprint
     $existingCertificate = Get-ChildItem -Path $targetStore | Where-Object Thumbprint -eq $endEntityThumbprint | Select-Object -First 1
 

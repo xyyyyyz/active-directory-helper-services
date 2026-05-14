@@ -70,9 +70,9 @@ A common hybrid pattern is:
 - PowerShell on the helper host for AD CS enrollment and packaging
 - Ansible for distribution, import, and application binding
 
-### When Desktop and Server Management (DSM) / endpoint software distribution tools are better
+### When endpoint management or software distribution tools are better
 
-A DSM-style endpoint deployment platform is useful when your organisation already uses it for Windows package delivery and scheduling. It is best at:
+An endpoint-management-style deployment platform is useful when your organisation already uses it for Windows package delivery and scheduling. It is best at:
 
 - broad software rollout
 - compliance reporting
