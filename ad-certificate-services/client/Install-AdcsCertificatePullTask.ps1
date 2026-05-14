@@ -31,8 +31,11 @@ if (-not $pwshPath) {
 
 $argument = "-NoProfile -ExecutionPolicy Bypass -File `"$SyncScriptPath`" -ManifestPath `"$ManifestPath`""
 $action = New-ScheduledTaskAction -Execute $pwshPath -Argument $argument
-$trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1)
-$trigger.Repetition = New-ScheduledTaskRepetitionSettingsSet -Interval (New-TimeSpan -Minutes $RepeatMinutes) -Duration (New-TimeSpan -Days 3650)
+$trigger = New-ScheduledTaskTrigger `
+    -Once `
+    -At (Get-Date).AddMinutes(1) `
+    -RepetitionInterval (New-TimeSpan -Minutes $RepeatMinutes) `
+    -RepetitionDuration (New-TimeSpan -Days 3650)
 $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -MultipleInstances IgnoreNew
 
 if ($RunAsSystem) {

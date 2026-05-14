@@ -31,7 +31,7 @@ The helper host should:
 Use a lightweight pull model on member servers:
 
 1. A scheduled helper job reads the repository manifest.
-2. If the published thumbprint differs from the currently installed certificate, the helper imports the new PFX into `LocalMachine\\My`.
+2. If the published thumbprint differs from the currently installed certificate, the helper imports the new PFX into `LocalMachine\My`.
 3. The helper applies service-specific binding logic:
    - **IIS**: update HTTPS bindings by hostname/port.
    - **RDP**: set the RDP listener thumbprint.
@@ -127,4 +127,4 @@ It is usually **less natural than PowerShell or Ansible** for certificate lifecy
 3. Copy the client scripts to each member server.
 4. Run `client/Install-AdcsCertificatePullTask.ps1` with the repository path and manifest path.
 5. Let the scheduled task run `client/Sync-AdcsCertificate.ps1` on a schedule.
-6. For SQL Server or other COTS apps, call an application-specific post-import script after the certificate is in `LocalMachine\\My`.
+6. For SQL Server or other COTS apps, call an application-specific post-import script after the certificate is in `LocalMachine\My`.

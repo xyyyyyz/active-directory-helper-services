@@ -66,7 +66,7 @@ if (-not (Test-Path -LiteralPath $passwordPath)) {
     Set-Content -LiteralPath $passwordPath -Value 'REPLACE-WITH-SECURE-PASSWORD' -Encoding UTF8
 }
 
-Write-Host "Repository initialised at $RepositoryPath"
+Write-Host "Repository initialized at $RepositoryPath"
 Write-Host "Sample manifest: $manifestPath"
 Write-Host "Password placeholder: $passwordPath"
 Write-Host "Publish the issued PFX to: $pfxPath"
