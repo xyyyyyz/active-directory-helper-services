@@ -10,7 +10,7 @@ Use a central Windows helper host for certificates that must be shared across mo
 
 - IIS farms behind a load balancer
 - SQL Server availability groups, failover cluster instances, and listener names
-- Other COTS applications that require the same certificate and private key on multiple hosts
+- Other commercial off-the-shelf (COTS) applications that require the same certificate and private key on multiple hosts
 
 The helper host should:
 

@@ -50,6 +50,8 @@ if (-not (Test-Path -LiteralPath $SyncScriptPath)) {
     throw "Sync script path '$SyncScriptPath' does not exist."
 }
 
+# Prefer Windows PowerShell first because it is the default on most AD-joined
+# Windows Server hosts and has the broadest compatibility with inbox modules.
 $pwshPath = (Get-Command powershell -ErrorAction SilentlyContinue).Source
 if (-not $pwshPath) {
     $pwshPath = (Get-Command pwsh -ErrorAction Stop).Source
