@@ -51,7 +51,7 @@ $passwordPath = Join-Path -Path $RepositoryPath -ChildPath ("passwords/{0}.txt" 
 $pfxPath = Join-Path -Path $RepositoryPath -ChildPath ("certificates/{0}.pfx" -f $CertificateName)
 
 if ((Test-Path -LiteralPath $manifestPath) -and -not $Force) {
-    throw "Manifest already exists at '$manifestPath'. Use -Force to overwrite the sample manifest."
+    throw "Manifest already exists at '$manifestPath'. Use -Force to overwrite."
 }
 
 $manifest = [ordered]@{

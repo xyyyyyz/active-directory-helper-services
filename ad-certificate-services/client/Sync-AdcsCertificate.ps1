@@ -155,6 +155,31 @@ function Set-RdpCertificateBinding {
     Write-Host "Updated RDP listener certificate to $($Certificate.Thumbprint)"
 }
 
+function Invoke-TrustedPostImportScript {
+    param(
+        [Parameter(Mandatory)]
+        [string]$PostImportScriptPath,
+
+        [Parameter(Mandatory)]
+        [string]$ManifestPath,
+
+        [Parameter(Mandatory)]
+        [string]$CertificateThumbprint
+    )
+
+    $resolvedPostImportScriptPath = (Resolve-Path -LiteralPath $PostImportScriptPath).Path
+    if ([System.IO.Path]::IsPathRooted($resolvedPostImportScriptPath) -and $resolvedPostImportScriptPath.StartsWith('\\')) {
+        throw "Post-import script '$resolvedPostImportScriptPath' must be a trusted local path, not a UNC path."
+    }
+
+    $signature = Get-AuthenticodeSignature -FilePath $resolvedPostImportScriptPath
+    if ($signature.Status -ne 'Valid') {
+        throw "Post-import script '$resolvedPostImportScriptPath' must have a valid Authenticode signature."
+    }
+
+    & $resolvedPostImportScriptPath -CertificateThumbprint $CertificateThumbprint -ManifestPath $ManifestPath
+}
+
 if (-not (Test-Path -LiteralPath $ManifestPath)) {
     throw "Manifest path '$ManifestPath' does not exist."
 }
@@ -175,5 +200,8 @@ if ($manifest.PostImportScriptPath) {
         throw "Post-import script '$($manifest.PostImportScriptPath)' does not exist."
     }
 
-    & $manifest.PostImportScriptPath -CertificateThumbprint $certificate.Thumbprint -ManifestPath $ManifestPath
+    Invoke-TrustedPostImportScript `
+        -PostImportScriptPath $manifest.PostImportScriptPath `
+        -ManifestPath $ManifestPath `
+        -CertificateThumbprint $certificate.Thumbprint
 }

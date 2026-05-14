@@ -50,9 +50,9 @@ if (-not (Test-Path -LiteralPath $SyncScriptPath)) {
     throw "Sync script path '$SyncScriptPath' does not exist."
 }
 
-$pwshPath = (Get-Command pwsh -ErrorAction SilentlyContinue).Source
+$pwshPath = (Get-Command powershell -ErrorAction SilentlyContinue).Source
 if (-not $pwshPath) {
-    $pwshPath = (Get-Command powershell -ErrorAction Stop).Source
+    $pwshPath = (Get-Command pwsh -ErrorAction Stop).Source
 }
 
 $argument = "-NoProfile -ExecutionPolicy Bypass -File `"$SyncScriptPath`" -ManifestPath `"$ManifestPath`""
