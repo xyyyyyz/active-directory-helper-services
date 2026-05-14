@@ -7,6 +7,30 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+function Test-CertificateSupportsServerAuthentication {
+    param(
+        [Parameter(Mandatory)]
+        [System.Security.Cryptography.X509Certificates.X509Certificate2]$Certificate
+    )
+
+    $serverAuthenticationOid = '1.3.6.1.5.5.7.3.1'
+    $ekuExtension = $Certificate.Extensions |
+        Where-Object { $_ -is [System.Security.Cryptography.X509Certificates.X509EnhancedKeyUsageExtension] } |
+        Select-Object -First 1
+
+    if (-not $ekuExtension) {
+        return $false
+    }
+
+    foreach ($usage in $ekuExtension.EnhancedKeyUsages) {
+        if ($usage.Value -eq $serverAuthenticationOid) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
 function Get-CertificatePassword {
     param(
         [Parameter(Mandatory)]
@@ -27,7 +51,7 @@ function Get-CertificatePassword {
         throw "Password file '$($Manifest.PasswordFilePath)' does not exist."
     }
 
-    return (Get-Content -LiteralPath $Manifest.PasswordFilePath -Raw | ConvertTo-SecureString -AsPlainText -Force)
+    return ((Get-Content -LiteralPath $Manifest.PasswordFilePath -Raw).Trim() | ConvertTo-SecureString -AsPlainText -Force)
 }
 
 function Import-SharedCertificate {
@@ -98,6 +122,10 @@ function Set-RdpCertificateBinding {
         [Parameter(Mandatory)]
         [System.Security.Cryptography.X509Certificates.X509Certificate2]$Certificate
     )
+
+    if (-not (Test-CertificateSupportsServerAuthentication -Certificate $Certificate)) {
+        throw "Certificate $($Certificate.Thumbprint) does not include the Server Authentication EKU required for RDP."
+    }
 
     $rdpSetting = Get-CimInstance -Namespace root/cimv2/TerminalServices -ClassName Win32_TSGeneralSetting -Filter "TerminalName='RDP-tcp'"
     if (-not $rdpSetting) {
