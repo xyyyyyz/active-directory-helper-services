@@ -7,6 +7,29 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+function Get-CertificatePassword {
+    param(
+        [Parameter(Mandatory)]
+        [pscustomobject]$Manifest
+    )
+
+    if ($Manifest.PasswordEnvironmentVariable) {
+        $environmentVariableName = [string]$Manifest.PasswordEnvironmentVariable
+        $environmentVariableValue = [Environment]::GetEnvironmentVariable($environmentVariableName)
+        if (-not [string]::IsNullOrWhiteSpace($environmentVariableValue)) {
+            return ConvertTo-SecureString -String $environmentVariableValue -AsPlainText -Force
+        }
+
+        throw "Environment variable '$environmentVariableName' is not set."
+    }
+
+    if (-not (Test-Path -LiteralPath $Manifest.PasswordFilePath)) {
+        throw "Password file '$($Manifest.PasswordFilePath)' does not exist."
+    }
+
+    return (Get-Content -LiteralPath $Manifest.PasswordFilePath -Raw | ConvertTo-SecureString -AsPlainText -Force)
+}
+
 function Import-SharedCertificate {
     param(
         [Parameter(Mandatory)]
@@ -17,11 +40,7 @@ function Import-SharedCertificate {
         throw "PFX path '$($Manifest.RepositoryPfxPath)' does not exist."
     }
 
-    if (-not (Test-Path -LiteralPath $Manifest.PasswordFilePath)) {
-        throw "Password file '$($Manifest.PasswordFilePath)' does not exist."
-    }
-
-    $password = Get-Content -LiteralPath $Manifest.PasswordFilePath -Raw | ConvertTo-SecureString -AsPlainText -Force
+    $password = Get-CertificatePassword -Manifest $Manifest
     $targetStore = if ($Manifest.TargetStore) { $Manifest.TargetStore } else { 'Cert:\LocalMachine\My' }
 
     $pfxData = Get-PfxData -FilePath $Manifest.RepositoryPfxPath -Password $password
@@ -54,6 +73,7 @@ function Set-IisCertificateBindings {
     Import-Module WebAdministration -ErrorAction Stop
 
     foreach ($binding in $Manifest.IisBindings) {
+        $sslFlagsSni = 1
         $bindingInformation = '{0}:{1}:{2}' -f $binding.IPAddress, $binding.Port, $binding.HostName
         $existingBinding = Get-WebBinding -Name $binding.SiteName -Protocol https -ErrorAction SilentlyContinue |
             Where-Object bindingInformation -eq $bindingInformation |
@@ -68,7 +88,7 @@ function Set-IisCertificateBindings {
             Remove-Item -LiteralPath $sslPath -Force
         }
 
-        New-Item -Path $sslPath -Thumbprint $Certificate.Thumbprint -SSLFlags 1 | Out-Null
+        New-Item -Path $sslPath -Thumbprint $Certificate.Thumbprint -SSLFlags $sslFlagsSni | Out-Null
         Write-Host "Bound certificate $($Certificate.Thumbprint) to IIS site '$($binding.SiteName)' on $bindingInformation"
     }
 }

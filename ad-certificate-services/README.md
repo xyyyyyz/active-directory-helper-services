@@ -70,7 +70,7 @@ A common hybrid pattern is:
 - PowerShell on the helper host for AD CS enrollment and packaging
 - Ansible for distribution, import, and application binding
 
-### When DSM / endpoint software distribution tools are better
+### When Desktop and Server Management (DSM) / endpoint software distribution tools are better
 
 A DSM-style endpoint deployment platform is useful when your organisation already uses it for Windows package delivery and scheduling. It is best at:
 
@@ -106,7 +106,7 @@ It is usually **less natural than PowerShell or Ansible** for certificate lifecy
 
 - Store exported PFX files only on a restricted share or repository.
 - Restrict read access to the exact machine accounts, gMSAs, or admin groups that need the certificate.
-- Keep the PFX password outside the manifest, ideally in a secret store; if that is not possible, store it in a separately ACL'd file.
+- Keep the PFX password outside the manifest, ideally in a secret store or injected environment variable; if that is not possible, store it in a separately ACL'd file.
 - Log certificate issuance, renewal, import, and binding actions.
 - Renew early enough to support phased deployment.
 - Keep a rollback option by retaining the previous PFX until the new certificate is verified.

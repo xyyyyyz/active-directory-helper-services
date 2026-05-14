@@ -43,6 +43,7 @@ $manifest = [ordered]@{
     PublishMode              = 'CentralHelperIssued'
     RepositoryPfxPath        = $pfxPath
     PasswordFilePath         = $passwordPath
+    PasswordEnvironmentVariable = ''
     FriendlyName             = 'Shared service certificate'
     TargetStore              = 'Cert:\LocalMachine\My'
     IisBindings              = @(
@@ -62,11 +63,8 @@ $manifest = [ordered]@{
 
 $manifest | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $manifestPath -Encoding UTF8
 
-if (-not (Test-Path -LiteralPath $passwordPath)) {
-    Set-Content -LiteralPath $passwordPath -Value 'REPLACE-WITH-SECURE-PASSWORD' -Encoding UTF8
-}
-
 Write-Host "Repository initialized at $RepositoryPath"
 Write-Host "Sample manifest: $manifestPath"
-Write-Host "Password placeholder: $passwordPath"
+Write-Host "Create a secure password file or set a password environment variable before publishing a PFX."
+Write-Host "Suggested password file path: $passwordPath"
 Write-Host "Publish the issued PFX to: $pfxPath"

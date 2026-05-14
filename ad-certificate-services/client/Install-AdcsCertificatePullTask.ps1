@@ -35,7 +35,7 @@ $trigger = New-ScheduledTaskTrigger `
     -Once `
     -At (Get-Date).AddMinutes(1) `
     -RepetitionInterval (New-TimeSpan -Minutes $RepeatMinutes) `
-    -RepetitionDuration (New-TimeSpan -Days 3650)
+    -RepetitionDuration ([TimeSpan]::MaxValue)
 $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -MultipleInstances IgnoreNew
 
 if ($RunAsSystem) {
